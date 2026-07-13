@@ -1,10 +1,5 @@
 import streamlit as st
-import threading
-import http.server
-import os
-import socket
-import tempfile
-import time
+from streamlit.components.v1 import html as components_html
 
 st.set_page_config(page_title="Video Validator Tool", layout="wide")
 st.markdown("""
@@ -526,49 +521,4 @@ html_code = """
 </html>
 """
 
-HTML_PORT = 8700
-
-def _find_free_port(preferred):
-    for port in range(preferred, preferred + 20):
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(("127.0.0.1", port))
-                return port
-        except OSError:
-            continue
-    return preferred
-
-def _write_html_file():
-    path = os.path.join(tempfile.gettempdir(), "_video_validator.html")
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(html_code)
-    return path
-
-# Always write the latest HTML (outside cache so edits take effect on reload)
-_write_html_file()
-
-@st.cache_resource
-def _start_server():
-    html_path = os.path.join(tempfile.gettempdir(), "_video_validator.html")
-    html_dir = os.path.dirname(html_path)
-    html_filename = os.path.basename(html_path)
-    port = _find_free_port(HTML_PORT)
-
-    class Handler(http.server.SimpleHTTPRequestHandler):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, directory=html_dir, **kwargs)
-        def log_message(self, *args):
-            pass
-
-    server = http.server.HTTPServer(("127.0.0.1", port), Handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    time.sleep(0.3)
-    return port, html_filename
-
-port, filename = _start_server()
-st.markdown(
-    f'<iframe src="http://localhost:{port}/{filename}" '
-    f'width="100%" height="1400" frameborder="0" style="border:none;display:block;"></iframe>',
-    unsafe_allow_html=True,
-)
+components_html(html_code, height=1400, scrolling=True)
