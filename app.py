@@ -322,8 +322,141 @@ html_code = """
             );
         });
 
-        // Stub — implemented in Task 3
-        async function handleFiles(files) {}
+        function formatDuration(ms) {
+            if (!ms || isNaN(ms)) return '-';
+            const totalSec = Math.round(ms / 1000);
+            const m = Math.floor(totalSec / 60);
+            const s = totalSec % 60;
+            return m + ':' + String(s).padStart(2, '0');
+        }
+
+        // Stub for Task 4 — replaced there
+        function appendRow(name, displayExt, sizeStr, durationStr, codecStr, status, errors) {}
+
+        async function handleFiles(files) {
+            document.getElementById('upload-main-text').innerText = 'Processing files…';
+            document.getElementById('upload-icon-svg').style.color = '#3B82F6';
+            await new Promise(r => setTimeout(r, 50)); // let UI paint
+
+            let mi;
+            try {
+                mi = await mediaInfoPromise;
+            } catch (_) {
+                document.getElementById('upload-main-text').innerText = 'Drag & drop your video files here';
+                document.getElementById('upload-icon-svg').style.color = '#64748B';
+                return;
+            }
+
+            for (const file of files) {
+                const fileId = file.name + '_' + file.size;
+                if (processedFiles.has(fileId)) continue;
+                processedFiles.add(fileId);
+
+                const sizeKB = file.size / 1024;
+                const sizeMB = file.size / (1024 * 1024);
+                const sizeStr = sizeMB >= 1
+                    ? sizeMB.toFixed(1) + ' MB'
+                    : sizeKB.toFixed(1) + ' KB';
+
+                const rawExt = file.name.split('.').pop();
+                const logicExt = rawExt.toLowerCase();
+                const displayExt = '.' + logicExt;
+
+                const errors = [];
+                let status = 'Pass';
+                let durationStr = '-';
+                let codecStr = '-';
+
+                // 1. File type check
+                if (logicExt !== 'mp4') {
+                    status = 'Fail';
+                    errors.push('Invalid format: ' + displayExt);
+                    appendRow(file.name, displayExt, '-', '-', '-', status, errors);
+                    continue;
+                }
+
+                // 2. Size check
+                if (sizeMB > 250) {
+                    status = 'Fail';
+                    errors.push('File exceeds 250 MB limit');
+                }
+
+                // 3. Audio codec check via MediaInfo.js
+                try {
+                    const getSize = () => file.size;
+                    const readChunk = (chunkSize, offset) =>
+                        new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                if (e.target.error) reject(e.target.error);
+                                else resolve(new Uint8Array(e.target.result));
+                            };
+                            reader.onerror = () => reject(reader.error);
+                            reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize));
+                        });
+
+                    const result = await mi.analyzeData(getSize, readChunk);
+                    const tracks = result.media ? result.media.track : [];
+                    const audioTrack = tracks.find(t => t['@type'] === 'Audio');
+                    const generalTrack = tracks.find(t => t['@type'] === 'General');
+
+                    if (generalTrack && generalTrack.Duration) {
+                        durationStr = formatDuration(parseFloat(generalTrack.Duration) * 1000);
+                    }
+
+                    if (!audioTrack) {
+                        codecStr = 'None';
+                        status = 'Fail';
+                        errors.push('No audio track detected');
+                    } else {
+                        const fmt = (audioTrack.Format || '').toUpperCase();
+                        codecStr = audioTrack.Format || 'Unknown';
+                        if (fmt !== 'AAC') {
+                            status = 'Fail';
+                            errors.push('Audio codec is ' + (audioTrack.Format || 'unknown') + ', must be AAC');
+                        }
+                    }
+                } catch (_) {
+                    codecStr = 'Unreadable';
+                    status = 'Fail';
+                    errors.push('Could not read audio metadata');
+                }
+
+                appendRow(file.name, displayExt, sizeStr, durationStr, codecStr, status, errors);
+            }
+
+            // Flush rows to DOM
+            document.getElementById('tbody-pass').innerHTML = passRows.join('');
+            document.getElementById('tbody-fail').innerHTML = failRows.join('');
+
+            document.getElementById('upload-main-text').innerText = 'Drag & drop your video files here';
+            document.getElementById('upload-icon-svg').style.color = '#64748B';
+            updateSummary();
+        }
+
+        function updateSummary() {
+            document.getElementById('count-pass').innerText = compliantCount;
+            document.getElementById('count-fail').innerText = nonCompliantCount;
+            const total = compliantCount + nonCompliantCount;
+            document.getElementById('summary-dashboard').style.display = total > 0 ? 'grid' : 'none';
+            document.getElementById('action-bar').style.display = total > 0 ? 'flex' : 'none';
+            document.getElementById('wrapper-fail').style.display = nonCompliantCount > 0 ? 'block' : 'none';
+            document.getElementById('wrapper-pass').style.display = compliantCount > 0 ? 'block' : 'none';
+        }
+
+        function clearResults() {
+            processedFiles.clear();
+            compliantCount = 0;
+            nonCompliantCount = 0;
+            passRows = [];
+            failRows = [];
+            document.getElementById('tbody-pass').innerHTML = '';
+            document.getElementById('tbody-fail').innerHTML = '';
+            fileInput.value = '';
+            updateSummary();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            try { window.parent.scrollTo({ top: 0, behavior: 'smooth' }); } catch(_) {}
+        }
 
         // Dropzone events
         const dropzone = document.getElementById('dropzone');
@@ -333,8 +466,6 @@ html_code = """
         dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
         dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
-
-        function clearResults() {}
     </script>
 </body>
 </html>
