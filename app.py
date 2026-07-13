@@ -336,8 +336,53 @@ html_code = """
             return m + ':' + String(s).padStart(2, '0');
         }
 
-        // Stub for Task 4 — replaced there
-        function appendRow(name, displayExt, sizeStr, durationStr, codecStr, status, errors) {}
+        const iconPass = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#22C55E"><circle cx="12" cy="12" r="11"/><path d="M8 12.5L10.5 15L16 9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        const iconFail = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#DC2626"><circle cx="12" cy="12" r="11"/><path d="M15 9L9 15M9 9L15 15" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+        function appendRow(name, displayExt, sizeStr, durationStr, codecStr, status, errors) {
+            const isPass = status === 'Pass';
+
+            // Size cell — red if over limit
+            const sizeCell = (sizeStr !== '-' && sizeStr.includes('MB') && parseFloat(sizeStr) > 250)
+                ? `<span class="text-error-detail">${sizeStr}</span>`
+                : sizeStr;
+
+            // Codec cell — red if not AAC and not placeholder
+            const codecCell = (codecStr !== '-' && codecStr !== 'None' && codecStr.toUpperCase() !== 'AAC')
+                ? `<span class="text-error-detail">${codecStr}</span>`
+                : codecStr;
+
+            // Ext cell — red if not mp4
+            const extCell = (displayExt !== '-' && displayExt !== '.mp4')
+                ? `<span class="text-error-detail">${displayExt}</span>`
+                : displayExt;
+
+            // Error bullets
+            const msgHtml = errors
+                .map(e => `<div class="text-error-detail" style="font-size:12px;line-height:1.25;">• ${e}</div>`)
+                .join('');
+
+            const statusBlock = isPass
+                ? `<div class="status-container"><div class="status-main status-text-pass">${iconPass} Pass</div></div>`
+                : `<div class="status-container"><div class="status-main status-text-fail">${iconFail} Fail</div>${msgHtml}</div>`;
+
+            const tr = `<tr class="data-row">
+        <td>${name}</td>
+        <td>${extCell}</td>
+        <td>${sizeCell}</td>
+        <td>${durationStr}</td>
+        <td>${codecCell}</td>
+        <td>${statusBlock}</td>
+    </tr>`;
+
+            if (isPass) {
+                compliantCount++;
+                passRows.push(tr);
+            } else {
+                nonCompliantCount++;
+                failRows.push(tr);
+            }
+        }
 
         async function handleFiles(files) {
             document.getElementById('upload-main-text').innerText = 'Processing files…';
