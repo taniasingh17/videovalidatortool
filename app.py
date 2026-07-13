@@ -18,6 +18,7 @@ html_code = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mediainfo.js@0.3.7/dist/umd/index.min.js" integrity="sha384-3Oz6Jpgi4ju60E2vE6C1Fb3rpTfrKKKhC4VbQwnfkewpiPhP49uWVAJNml2p8JYC" crossorigin="anonymous"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Manrope', sans-serif; font-weight: 400; }
         body { background-color: #FAFAFA; color: #0F172A; padding-bottom: 250px; }
@@ -293,6 +294,46 @@ html_code = """
         `;
         document.getElementById('thead-fail').innerHTML = thRowHTML;
         document.getElementById('thead-pass').innerHTML = thRowHTML;
+
+        // State
+        let processedFiles = new Set();
+        let compliantCount = 0;
+        let nonCompliantCount = 0;
+        let passRows = [];
+        let failRows = [];
+
+        // Initialise MediaInfo.js once; reuse the same instance for all files
+        const mediaInfoPromise = new Promise((resolve, reject) => {
+            if (typeof MediaInfo === 'undefined') {
+                document.getElementById('mediainfo-error').style.display = 'block';
+                reject(new Error('MediaInfo not loaded'));
+                return;
+            }
+            MediaInfo(
+                {
+                    format: 'object',
+                    locateFile: () => 'https://cdn.jsdelivr.net/npm/mediainfo.js@0.3.7/dist/MediaInfoModule.wasm'
+                },
+                (mi) => resolve(mi),
+                (err) => {
+                    document.getElementById('mediainfo-error').style.display = 'block';
+                    reject(err);
+                }
+            );
+        });
+
+        // Stub — implemented in Task 3
+        async function handleFiles(files) {}
+
+        // Dropzone events
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
         function clearResults() {}
     </script>
 </body>
