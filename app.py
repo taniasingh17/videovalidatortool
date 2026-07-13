@@ -293,6 +293,7 @@ html_code = """
         `;
         document.getElementById('thead-fail').innerHTML = thRowHTML;
         document.getElementById('thead-pass').innerHTML = thRowHTML;
+        function clearResults() {}
     </script>
 </body>
 </html>
