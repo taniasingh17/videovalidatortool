@@ -303,24 +303,30 @@ html_code = """
         let failRows = [];
 
         // Initialise MediaInfo.js once; reuse the same instance for all files
-        const mediaInfoPromise = new Promise((resolve, reject) => {
+        const mediaInfoPromise = (async () => {
             if (typeof MediaInfo === 'undefined') {
                 document.getElementById('mediainfo-error').style.display = 'block';
-                reject(new Error('MediaInfo not loaded'));
-                return;
+                throw new Error('MediaInfo not loaded');
             }
-            MediaInfo(
-                {
-                    format: 'object',
-                    locateFile: () => 'https://cdn.jsdelivr.net/npm/mediainfo.js@0.3.7/dist/MediaInfoModule.wasm'
-                },
-                (mi) => resolve(mi),
-                (err) => {
-                    document.getElementById('mediainfo-error').style.display = 'block';
-                    reject(err);
-                }
-            );
-        });
+            const wasmUrl = 'https://cdn.jsdelivr.net/npm/mediainfo.js@0.3.7/dist/MediaInfoModule.wasm';
+            const wasmHash = 'sha384-GMb1/GI2Sb2TFOBBv4eNWH2gYTAuW1O3XZsFCqPlM4w/mn7Edto49zFMTty+EXrG';
+            let wasmObjectUrl;
+            try {
+                const resp = await fetch(wasmUrl, { integrity: wasmHash });
+                const blob = await resp.blob();
+                wasmObjectUrl = URL.createObjectURL(blob);
+            } catch (err) {
+                document.getElementById('mediainfo-error').style.display = 'block';
+                throw err;
+            }
+            return new Promise((resolve, reject) => {
+                MediaInfo(
+                    { format: 'object', locateFile: () => wasmObjectUrl },
+                    (mi) => { URL.revokeObjectURL(wasmObjectUrl); resolve(mi); },
+                    (err) => { URL.revokeObjectURL(wasmObjectUrl); document.getElementById('mediainfo-error').style.display = 'block'; reject(err); }
+                );
+            });
+        })();
 
         function formatDuration(ms) {
             if (!ms || isNaN(ms)) return '-';
