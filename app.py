@@ -329,7 +329,7 @@ html_code = """
         })();
 
         function formatDuration(ms) {
-            if (!ms || isNaN(ms)) return '-';
+            if (ms == null || isNaN(ms)) return '-';
             const totalSec = Math.round(ms / 1000);
             const m = Math.floor(totalSec / 60);
             const s = totalSec % 60;
@@ -450,6 +450,10 @@ html_code = """
             document.getElementById('wrapper-pass').style.display = compliantCount > 0 ? 'block' : 'none';
         }
 
+        // Dropzone events
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+
         function clearResults() {
             processedFiles.clear();
             compliantCount = 0;
@@ -463,10 +467,6 @@ html_code = """
             window.scrollTo({ top: 0, behavior: 'smooth' });
             try { window.parent.scrollTo({ top: 0, behavior: 'smooth' }); } catch(_) {}
         }
-
-        // Dropzone events
-        const dropzone = document.getElementById('dropzone');
-        const fileInput = document.getElementById('file-input');
 
         dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
         dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
